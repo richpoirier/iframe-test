@@ -13,32 +13,37 @@
             function checkAndSendGTMData() {
                 // Check if GTM is loaded
                 if (window.google_tag_manager) {
-                    // Create a safe copy of dataLayer with only serializable data
+                    const containerId = Object.keys(window.google_tag_manager)[0];
+                    
+                    // Create a minimal safe copy of GTM state
+                    const safeGTMState = {
+                        'gtm.start': window.dataLayer?.[0]?.['gtm.start'],
+                        loaded: true,
+                        version: window.google_tag_manager[containerId]?.version || '',
+                    };
+
+                    // Create a safe copy of dataLayer with only essential data
                     const safeDataLayer = window.dataLayer ? window.dataLayer.map(item => {
-                        try {
-                            // Test if the item is serializable
-                            JSON.stringify(item);
-                            return item;
-                        } catch (e) {
-                            // If not serializable, return a simplified version
-                            return {
-                                event: item.event,
-                                ...Object.fromEntries(
-                                    Object.entries(item)
-                                        .filter(([_, v]) => typeof v !== 'function' && v !== undefined)
-                                )
-                            };
+                        if (item && typeof item === 'object') {
+                            // Only include essential GTM events and properties
+                            const safeItem = {};
+                            if (item.event) safeItem.event = item.event;
+                            if (item['gtm.start']) safeItem['gtm.start'] = item['gtm.start'];
+                            if (item['gtm.uniqueEventId']) safeItem['gtm.uniqueEventId'] = item['gtm.uniqueEventId'];
+                            return safeItem;
                         }
-                    }) : [];
+                        return item;
+                    }).filter(Boolean) : [];
 
                     window.parent.postMessage({
                         type: 'GTM_DATA',
                         data: {
                             hasGTM: true,
-                            containerId: Object.keys(window.google_tag_manager)[0],
-                            dataLayer: safeDataLayer
+                            containerId,
+                            dataLayer: safeDataLayer,
+                            gtmState: safeGTMState
                         }
-                    }, 'https://richpoirier.github.io');
+                    }, '*');
                     return true;
                 }
                 return false;
