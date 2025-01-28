@@ -2,13 +2,43 @@
     <head>
         <meta charset="UTF-8">
         <title>Web Pixel</title>
-        <!-- Google Tag Manager -->
-        <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        <script>
+            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
             new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
             j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','GTM-T36KSSBM');</script>
-        <!-- End Google Tag Manager -->
+            })(window,document,'script','dataLayer','GTM-T36KSSBM');
+            
+            // Function to check GTM and send data to parent
+            function checkAndSendGTMData() {
+                // Check if GTM is loaded
+                if (window.google_tag_manager) {
+                    window.parent.postMessage({
+                        type: 'GTM_DATA',
+                        data: {
+                            hasGTM: true,
+                            containerId: Object.keys(window.google_tag_manager)[0],
+                            dataLayer: window.dataLayer
+                        }
+                    }, '*');  // In production, specify exact target origin instead of '*'
+                    return true;
+                }
+                return false;
+            }
+        
+            // Try immediately
+            if (!checkAndSendGTMData()) {
+                // If GTM not loaded yet, check periodically
+                const checkInterval = setInterval(() => {
+                    if (checkAndSendGTMData()) {
+                        clearInterval(checkInterval);
+                    }
+                }, 500);
+        
+                // Stop checking after 10 seconds
+                setTimeout(() => clearInterval(checkInterval), 10000);
+            }
+        </script>
     </head>
     <body>
         <!-- Google Tag Manager (noscript) -->

@@ -3,11 +3,40 @@
 <head>
     <title>GTM Test Page</title>
     <meta charset="UTF-8">
+    <script>
+        // Listen for GTM data from iframe
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'GTM_DATA') {
+                const gtmData = event.data.data;
+                
+                // Create a proxy object that Tag Assistant can detect
+                if (gtmData.hasGTM && !window.google_tag_manager) {
+                    // Create dataLayer if it doesn't exist
+                    window.dataLayer = window.dataLayer || [];
+                    
+                    // Sync dataLayer from iframe
+                    if (gtmData.dataLayer) {
+                        window.dataLayer.push(...gtmData.dataLayer);
+                    }
+                    
+                    // Create google_tag_manager proxy
+                    window.google_tag_manager = {};
+                    if (gtmData.containerId) {
+                        window.google_tag_manager[gtmData.containerId] = {
+                            dataLayer: window.dataLayer
+                        };
+                    }
+                    
+                    console.log('GTM data synced from iframe:', window.google_tag_manager);
+                }
+            }
+        });
+    </script>
 </head>
 <body>
     <h1>GTM Test Page</h1>
     <iframe 
-        sandbox="allow-scripts allow-forms allow-same-origin" 
+        sandbox="allow-scripts allow-forms" 
         src="https://richpoirier.github.io/iframe-test/iframe.html"
         title="Web Pixel"
     </iframe>
