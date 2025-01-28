@@ -2,26 +2,13 @@
 <html lang="en">
 <head>
     <title>GTM Test Page</title>
-    <meta http-equiv="Content-Security-Policy" content="block-all-mixed-content; frame-ancestors 'self'; upgrade-insecure-requests;">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        iframe {
-            height: 0px !important;
-            width: 0px !important;
-            visibility: hidden !important;
-        }
-    </style>
 </head>
 <body>
     <h1>GTM Test Page</h1>
     <iframe 
         sandbox="allow-scripts allow-forms" 
         src="https://richpoirier.github.io/iframe-test/iframe.html"
-        tabindex="-1"
-        aria-hidden="true"
-        name="web-pixel-sandbox-TEST"
-        id="web-pixel-sandbox-TEST"
         title="Web Pixel"
     </iframe>
 </body>
