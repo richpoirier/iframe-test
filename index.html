@@ -4,122 +4,16 @@
     <title>GTM Test Page</title>
     <meta charset="UTF-8">
     <script>
-        let messagePort = null;
-        let gtmDebugReceiver = null;
-        
-        // Create a proxy for GTM debug functionality
-        const debugApi = {
-            setReceiver: function(receiver) {
-                gtmDebugReceiver = receiver;
-            },
-            sendMessage: function(message) {
-                if (messagePort) {
-                    messagePort.postMessage({
-                        type: 'GTM_DEBUG',
-                        data: message
-                    });
-                }
-            }
-        };
-
-        // Create a proxy for the google_tag_manager object
-        function createGTMProxy(containerId, dataLayer) {
-            return {
-                dataLayer: dataLayer,
-                _debugFlag: true,
-                debug: {
-                    state: 'loaded',
-                    dataLayer: dataLayer,
-                    sendDebugData: function(data) {
-                        if (messagePort) {
-                            messagePort.postMessage({
-                                type: 'GTM_DEBUG_DATA',
-                                data: data
-                            });
-                        }
-                    }
-                }
-            };
-        }
-
-        // Listen for initial channel setup from iframe
-        window.addEventListener('message', function(event) {
-            // Log the received message for debugging
-            console.log('Received message from:', event.origin);
-        
-            // Accept messages from our GitHub Pages domain or its subpaths
-            // if (!event.origin.startsWith('https://richpoirier.github.io')) {
-            //     console.warn('Received message from unexpected origin:', event.origin);
-            //     return;
-            // }
-
-            // Handle the MessageChannel port transfer
-            if (event.data === 'INIT_CHANNEL') {
-                messagePort = event.ports[0];
-                
-                // Listen for messages on the port
-                messagePort.onmessage = function(e) {
-                    const data = e.data;
-                    switch(data.type) {
-                        case 'GTM_DATA':
-                            const gtmData = data.data;
-                            if (gtmData.hasGTM && !window.google_tag_manager) {
-                                window.dataLayer = window.dataLayer || [];
-                                if (gtmData.dataLayer) {
-                                    window.dataLayer.push(...gtmData.dataLayer);
-                                }
-                                window.google_tag_manager = {};
-                                if (gtmData.containerId) {
-                                    window.google_tag_manager[gtmData.containerId] = createGTMProxy(gtmData.containerId, window.dataLayer);
-                                }
-                                console.log('GTM data synced from iframe:', window.google_tag_manager);
-                            }
-                            break;
-                        case 'GTM_DEBUG_EVENT':
-                            if (gtmDebugReceiver) {
-                                gtmDebugReceiver(data.data);
-                            }
-                            break;
-                        case 'GTM_DEBUG_MESSAGE':
-                            if (gtmDebugReceiver) {
-                                gtmDebugReceiver(data.data);
-                            }
-                            break;
-                    }
-                };
-
-                // Start receiving messages
-                messagePort.start();
-            }
-        });
-
-        // Define debugBadgeApi after all setup is complete
-        Object.defineProperty(window, 'debugBadgeApi', {
-            value: debugApi,
-            writable: false,
-            configurable: false
-        });
-
         // Create MessageChannel for secure communication
         const channel = new MessageChannel();
-        let debugReceiver = null;
+        let debuggerReceiver = null;
 
-        // Set up debugBadgeApi on parent window (this window)
-        window.debugBadgeApi = {
-            setReceiver: function(receiver) {
-                debugReceiver = receiver;
-            },
-            sendMessage: function(message) {
-                if (debugReceiver) {
-                    debugReceiver(message);
-                }
-            }
-        };
-
-        // Listen for messages from iframe
+        // Listen for messages from our iframe
         channel.port1.onmessage = function(event) {
-            if (event.data.type === 'GTM_DEBUG_MESSAGE' && debugReceiver) {
-                debugReceiver(event.data.data);
+            const data = event.data;
+            if (data.type === 'DEBUGGER_RELAY') {
+                // Just log messages for now since we're handling them in the iframe
+                console.log('Debug message:', data.message);
             }
         };
 
@@ -128,7 +22,7 @@
             // Create and append iframe with sandbox attributes
             const iframe = document.createElement('iframe');
             iframe.sandbox = 'allow-scripts allow-forms';  // Explicitly exclude allow-same-origin
-            iframe.src = 'https://richpoirier.github.io/iframe-test/iframe.html';
+            iframe.src = 'iframe.html';  // Point to local file
             
             // Once iframe loads, send it the MessageChannel port
             iframe.onload = function() {
@@ -136,10 +30,10 @@
             };
             
             document.body.appendChild(iframe);
-        });
+        });    
     </script>
     <!-- Ensure proper Content-Security-Policy -->
-    <meta http-equiv="Content-Security-Policy" content="frame-src https://richpoirier.github.io https://www.googletagmanager.com">
+    <meta http-equiv="Content-Security-Policy" content="frame-src http://localhost:8000 https://www.googletagmanager.com">
 </head>
 <body>
     <h1>GTM Test Page</h1>
