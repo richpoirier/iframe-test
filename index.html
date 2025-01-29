@@ -123,17 +123,20 @@
             }
         };
 
-        // Create and append iframe with sandbox attributes
-        const iframe = document.createElement('iframe');
-        iframe.sandbox = 'allow-scripts allow-forms';  // Explicitly exclude allow-same-origin
-        iframe.src = 'https://richpoirier.github.io/iframe-test/iframe.html';
-        
-        // Once iframe loads, send it the MessageChannel port
-        iframe.onload = function() {
-            iframe.contentWindow.postMessage('INIT_CHANNEL', '*', [channel.port2]);
-        };
-        
-        document.body.appendChild(iframe);
+        // Wait for DOM to be ready before creating iframe
+        document.addEventListener('DOMContentLoaded', function() {
+            // Create and append iframe with sandbox attributes
+            const iframe = document.createElement('iframe');
+            iframe.sandbox = 'allow-scripts allow-forms';  // Explicitly exclude allow-same-origin
+            iframe.src = 'https://richpoirier.github.io/iframe-test/iframe.html';
+            
+            // Once iframe loads, send it the MessageChannel port
+            iframe.onload = function() {
+                iframe.contentWindow.postMessage('INIT_CHANNEL', '*', [channel.port2]);
+            };
+            
+            document.body.appendChild(iframe);
+        });
     </script>
     <!-- Ensure proper Content-Security-Policy -->
     <meta http-equiv="Content-Security-Policy" content="frame-src https://richpoirier.github.io https://www.googletagmanager.com">
