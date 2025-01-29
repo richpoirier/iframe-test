@@ -6,6 +6,19 @@
             // Create MessageChannel for secure communication
             const channel = new MessageChannel();
 
+            // Create a proxy for debug functionality
+            window.debugBadgeApi = {
+                setReceiver: function(receiver) {
+                    // When GTM tries to set a receiver, send events through MessageChannel instead
+                    window._gtmDebugReceiver = function(data) {
+                        channel.port1.postMessage({
+                            type: 'GTM_DEBUG_EVENT',
+                            data: data
+                        });
+                    };
+                }
+            };
+
             // Function to check GTM and send data to parent
             function checkAndSendGTMData() {
                 // Check if GTM is loaded
@@ -46,6 +59,16 @@
                 }
                 return false;
             }
+
+            // Listen for debug messages from parent
+            channel.port1.onmessage = function(e) {
+                if (e.data && e.data.type === 'GTM_DEBUG') {
+                    // Handle debug messages from parent
+                    if (window._gtmDebugReceiver) {
+                        window._gtmDebugReceiver(e.data.data);
+                    }
+                }
+            };
 
             // Initialize connection with parent first
             window.parent.postMessage('INIT_CHANNEL', '*', [channel.port2]);
