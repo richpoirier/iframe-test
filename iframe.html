@@ -6,6 +6,9 @@
             // Create MessageChannel for secure communication
             const channel = new MessageChannel();
 
+            // Initialize connection with parent first (before any proxying)
+            window.parent.postMessage('INIT_CHANNEL', '*', [channel.port2]);
+
             // Create a proxy for all window properties GTM might try to access
             const proxyHandler = {
                 get: function(target, prop) {
@@ -37,7 +40,7 @@
                 }
             };
 
-            // Apply proxy to window object
+            // Apply proxy to window object after initial communication is set up
             window.top = new Proxy(window, proxyHandler);
             window.parent = new Proxy(window, proxyHandler);
 
@@ -94,9 +97,6 @@
                     }
                 }
             };
-
-            // Initialize connection with parent first
-            window.parent.postMessage('INIT_CHANNEL', '*', [channel.port2]);
             
             // Initialize GTM
             (function(w,d,s,l,i){
