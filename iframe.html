@@ -55,7 +55,8 @@
                 if (iframe instanceof HTMLIFrameElement) {
                     Object.defineProperty(iframe, 'contentWindow', {
                         get: function() {
-                            const originalContentWindow = HTMLIFrameElement.prototype.contentWindow.get.call(this);
+                            // Bind the original getter to this iframe instance
+                            const originalContentWindow = HTMLIFrameElement.prototype.contentWindow.get.bind(this)();
                             return new Proxy(originalContentWindow || {}, {
                                 get: function(target, prop) {
                                     if (prop === 'debugBadgeApi') {
@@ -114,7 +115,8 @@
             // Override the contentWindow getter on the HTMLIFrameElement prototype
             Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
                 get: function() {
-                    const originalContentWindow = originalContentWindowGetter.call(this);
+                    // Bind the original getter to this iframe instance
+                    const originalContentWindow = originalContentWindowGetter.bind(this)();
                     return new Proxy(originalContentWindow || {}, {
                         get: function(target, prop) {
                             if (prop === 'debugBadgeApi') {
