@@ -3,49 +3,74 @@
     <head>
         <meta charset="UTF-8">
         <title>Web Pixel</title>
+        <!-- Add an empty script tag for GTM to use as reference -->
+        <script></script>
         <script>
             let messagePort = null;
+            let debugReceiver = null;
+
+            // Create a proxy handler for window properties
+            const proxyHandler = {
+                get: function(target, prop) {
+                    // Special handling for 'parent' and 'top' properties
+                    if (prop === 'parent' || prop === 'top') {
+                        return new Proxy(window, {
+                            get: function(target, prop) {
+                                if (prop === 'debugBadgeApi') {
+                                    return {
+                                        setReceiver: function(receiver) {
+                                            debugReceiver = receiver;
+                                        },
+                                        sendMessage: function(message) {
+                                            if (messagePort) {
+                                                messagePort.postMessage({
+                                                    type: 'GTM_DEBUG_MESSAGE',
+                                                    data: message
+                                                });
+                                            }
+                                        }
+                                    };
+                                }
+                                return target[prop];
+                            },
+                            set: function(target, prop, value) {
+                                if (prop === 'debugBadgeApi') {
+                                    // Ignore attempts to set debugBadgeApi
+                                    return true;
+                                }
+                                target[prop] = value;
+                                return true;
+                            }
+                        });
+                    }
+                    return target[prop];
+                }
+            };
 
             // Listen for the MessageChannel port from parent
             window.addEventListener('message', function(event) {
                 if (event.data === 'INIT_CHANNEL') {
                     messagePort = event.ports[0];
-                    setupGTMDebug();
+                    
+                    // Apply proxy to window
+                    window.top = new Proxy(window, proxyHandler);
+                    window.parent = new Proxy(window, proxyHandler);
+
+                    // Initialize GTM with original snippet
+                    (function(w,d,s,l,i){
+                        w[l]=w[l]||[];
+                        w[l].push({
+                            'gtm.start': new Date().getTime(),
+                            event:'gtm.js'
+                        });
+                        var f=d.getElementsByTagName(s)[0],
+                        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
+                        j.async=true;
+                        j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
+                        f.parentNode.insertBefore(j,f);
+                    })(window,document,'script','dataLayer','GTM-T36KSSBM');
                 }
             });
-
-            function setupGTMDebug() {
-                // Create a proxy for GTM debug messages
-                window._debugBadgeApi = {
-                    setReceiver: function(receiver) {
-                        // When GTM sets a receiver, store it to forward messages
-                        window._gtmDebugReceiver = receiver;
-                    },
-                    sendMessage: function(message) {
-                        // Forward messages to parent through MessageChannel
-                        if (messagePort) {
-                            messagePort.postMessage({
-                                type: 'GTM_DEBUG_MESSAGE',
-                                data: message
-                            });
-                        }
-                    }
-                };
-
-                // Initialize GTM with original snippet
-                (function(w,d,s,l,i){
-                    w[l]=w[l]||[];
-                    w[l].push({
-                        'gtm.start': new Date().getTime(),
-                        event:'gtm.js'
-                    });
-                    var f=d.getElementsByTagName(s)[0],
-                    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
-                    j.async=true;
-                    j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
-                    f.parentNode.insertBefore(j,f);
-                })(window,document,'script','dataLayer','GTM-T36KSSBM');
-            }
         </script>
     </head>
     <body>
