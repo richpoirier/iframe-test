@@ -5,16 +5,15 @@
     <meta charset="UTF-8">
     <script>
         let messagePort = null;
+        let gtmDebugReceiver = null;
         
-        // Set up debug API interface for Tag Assistant
-        window.debugBadgeApi = {
+        // Create a proxy for GTM debug functionality
+        const debugApi = {
             setReceiver: function(receiver) {
-                // Store the receiver function
-                window._gtmDebugReceiver = receiver;
+                gtmDebugReceiver = receiver;
             },
             sendMessage: function(message) {
-                // Forward debug messages to iframe through MessageChannel
-                if (messagePort && message.messageType === 'CONTAINER_DEBUG') {
+                if (messagePort) {
                     messagePort.postMessage({
                         type: 'GTM_DEBUG',
                         data: message
@@ -22,6 +21,26 @@
                 }
             }
         };
+
+        // Create a proxy for the google_tag_manager object
+        function createGTMProxy(containerId, dataLayer) {
+            return {
+                dataLayer: dataLayer,
+                _debugFlag: true,
+                debug: {
+                    state: 'loaded',
+                    dataLayer: dataLayer,
+                    sendDebugData: function(data) {
+                        if (messagePort) {
+                            messagePort.postMessage({
+                                type: 'GTM_DEBUG_DATA',
+                                data: data
+                            });
+                        }
+                    }
+                }
+            };
+        }
 
         // Listen for initial channel setup from iframe
         window.addEventListener('message', function(event) {
@@ -40,52 +59,45 @@
                 
                 // Listen for messages on the port
                 messagePort.onmessage = function(e) {
-                    if (e.data && e.data.type === 'GTM_DATA') {
-                        const gtmData = e.data.data;
-                        
-                        // Create a proxy object that Tag Assistant can detect
-                        if (gtmData.hasGTM && !window.google_tag_manager) {
-                            // Create dataLayer if it doesn't exist
-                            window.dataLayer = window.dataLayer || [];
-                            
-                            // Sync dataLayer from iframe
-                            if (gtmData.dataLayer) {
-                                window.dataLayer.push(...gtmData.dataLayer);
+                    const data = e.data;
+                    switch(data.type) {
+                        case 'GTM_DATA':
+                            const gtmData = data.data;
+                            if (gtmData.hasGTM && !window.google_tag_manager) {
+                                window.dataLayer = window.dataLayer || [];
+                                if (gtmData.dataLayer) {
+                                    window.dataLayer.push(...gtmData.dataLayer);
+                                }
+                                window.google_tag_manager = {};
+                                if (gtmData.containerId) {
+                                    window.google_tag_manager[gtmData.containerId] = createGTMProxy(gtmData.containerId, window.dataLayer);
+                                }
+                                console.log('GTM data synced from iframe:', window.google_tag_manager);
                             }
-                            
-                            // Create google_tag_manager proxy
-                            window.google_tag_manager = {};
-                            if (gtmData.containerId) {
-                                window.google_tag_manager[gtmData.containerId] = {
-                                    dataLayer: window.dataLayer,
-                                    _debugFlag: true,
-                                    debug: {
-                                        state: 'loaded',
-                                        dataLayer: window.dataLayer,
-                                        // Add proxy methods for debug functionality
-                                        sendDebugData: function(data) {
-                                            messagePort.postMessage({
-                                                type: 'GTM_DEBUG_DATA',
-                                                data: data
-                                            });
-                                        }
-                                    }
-                                };
+                            break;
+                        case 'GTM_DEBUG_EVENT':
+                            if (gtmDebugReceiver) {
+                                gtmDebugReceiver(data.data);
                             }
-                            
-                            console.log('GTM data synced from iframe:', window.google_tag_manager);
-                        }
-                    } else if (e.data && e.data.type === 'GTM_DEBUG_EVENT') {
-                        // Forward debug events to Tag Assistant
-                        if (window._gtmDebugReceiver) {
-                            window._gtmDebugReceiver(e.data.data);
-                        }
+                            break;
+                        case 'GTM_DEBUG_MESSAGE':
+                            if (gtmDebugReceiver) {
+                                gtmDebugReceiver(data.data);
+                            }
+                            break;
                     }
                 };
 
                 // Start receiving messages
                 messagePort.start();
             }
+        });
+
+        // Define debugBadgeApi after all setup is complete
+        Object.defineProperty(window, 'debugBadgeApi', {
+            value: debugApi,
+            writable: false,
+            configurable: false
         });
     </script>
     <!-- Ensure proper Content-Security-Policy -->

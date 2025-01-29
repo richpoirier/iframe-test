@@ -6,24 +6,47 @@
             // Create MessageChannel for secure communication
             const channel = new MessageChannel();
 
-            // Create a proxy for debug functionality
-            window.debugBadgeApi = {
-                setReceiver: function(receiver) {
-                    // When GTM tries to set a receiver, send events through MessageChannel instead
-                    window._gtmDebugReceiver = function(data) {
-                        channel.port1.postMessage({
-                            type: 'GTM_DEBUG_EVENT',
-                            data: data
-                        });
-                    };
+            // Create a proxy for all window properties GTM might try to access
+            const proxyHandler = {
+                get: function(target, prop) {
+                    return target[prop];
+                },
+                set: function(target, prop, value) {
+                    if (prop === 'debugBadgeApi') {
+                        // When GTM tries to set debugBadgeApi, create a proxy version
+                        target[prop] = {
+                            setReceiver: function(receiver) {
+                                window._gtmDebugReceiver = function(data) {
+                                    channel.port1.postMessage({
+                                        type: 'GTM_DEBUG_EVENT',
+                                        data: data
+                                    });
+                                };
+                            },
+                            sendMessage: function(message) {
+                                channel.port1.postMessage({
+                                    type: 'GTM_DEBUG_MESSAGE',
+                                    data: message
+                                });
+                            }
+                        };
+                        return true;
+                    }
+                    target[prop] = value;
+                    return true;
                 }
             };
+
+            // Apply proxy to window object
+            window.top = new Proxy(window, proxyHandler);
+            window.parent = new Proxy(window, proxyHandler);
 
             // Function to check GTM and send data to parent
             function checkAndSendGTMData() {
                 // Check if GTM is loaded
                 if (window.google_tag_manager) {
                     const containerId = Object.keys(window.google_tag_manager)[0];
+                    const gtm = window.google_tag_manager[containerId];
                     
                     // Create a safe copy of dataLayer with only serializable data
                     const safeDataLayer = (window.dataLayer || []).map(item => {
@@ -52,7 +75,9 @@
                         data: {
                             hasGTM: true,
                             containerId: containerId,
-                            dataLayer: safeDataLayer
+                            dataLayer: safeDataLayer,
+                            version: gtm.version,
+                            debugMode: window.location.href.includes('gtm_debug=')
                         }
                     });
                     return true;
@@ -60,7 +85,7 @@
                 return false;
             }
 
-            // Listen for debug messages from parent
+            // Listen for messages from parent
             channel.port1.onmessage = function(e) {
                 if (e.data && e.data.type === 'GTM_DEBUG') {
                     // Handle debug messages from parent
