@@ -77,6 +77,16 @@
                     }
                 };
 
+                // Create a proxy for google_tag_manager
+                const gtmProxy = new Proxy(window.google_tag_manager || {}, {
+                    get: function(target, prop) {
+                        if (prop === '_gtm_debug') return true;
+                        if (prop === 'dataLayer') return window.dataLayer;
+                        if (prop === 'debugPageId') return Date.now().toString();
+                        return target[prop];
+                    }
+                });
+
                 // Instead of proxying the target window, create a fresh object
                 const fakeWindow = {
                     get debugBadgeApi() {
@@ -90,13 +100,16 @@
                     get document() {
                         return fakeDocument;
                     },
-                    // Add Tag Assistant detection support
+                    // Return our proxied google_tag_manager
                     get google_tag_manager() {
-                        return window.google_tag_manager;
+                        return gtmProxy;
                     },
                     get dataLayer() {
                         return window.dataLayer;
                     },
+                    // Add debug flags
+                    get google_tag_manager_debug() { return true; },
+                    get google_tag_manager_debugui() { return true; },
                     postMessage: function(msg, targetOrigin, transfer) {
                         if (messagePort) {
                             messagePort.postMessage({
