@@ -4,22 +4,15 @@
         <title>Web Pixel</title>
         <base href="https://richpoirier.github.io/iframe-test/">
         <script>
-            // Initialize GTM with debug parameters
-            (function(w,d,s,l,i){
-                w[l]=w[l]||[];
-                w[l].push({
-                    'gtm.start': new Date().getTime(),
-                    event:'gtm.js'
-                });
-                var f=d.getElementsByTagName(s)[0],
-                j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
-                j.async=true;
-                // Add debug parameters if needed
-                var debugParams = window.location.href.includes('gtm_debug=') ? '&gtm_debug=x' : '';
-                j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl+debugParams;
-                f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','GTM-T36KSSBM');
+            // Create MessageChannel first
+            const channel = new MessageChannel();
             
+            // Set up debug API interface before GTM loads
+            window.zdgeApi = {
+                setReceiver: function() {},
+                sendMessage: function() {}
+            };
+
             // Function to check GTM and send data to parent
             function checkAndSendGTMData() {
                 // Check if GTM is loaded
@@ -61,10 +54,28 @@
                 }
                 return false;
             }
+
+            // Initialize connection with parent first
+            window.parent.postMessage('INIT_CHANNEL', 'https://richpoirier.github.io', [channel.port2]);
+            
+            // Initialize GTM after debug setup
+            (function(w,d,s,l,i){
+                w[l]=w[l]||[];
+                w[l].push({
+                    'gtm.start': new Date().getTime(),
+                    event:'gtm.js'
+                });
+                var f=d.getElementsByTagName(s)[0],
+                j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
+                j.async=true;
+                // Add debug parameters if needed
+                var debugParams = window.location.href.includes('gtm_debug=') ? '&gtm_debug=x' : '';
+                j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl+debugParams;
+                f.parentNode.insertBefore(j,f);
+            })(window,document,'script','dataLayer','GTM-T36KSSBM');
         
-            // Try immediately
+            // Start checking for GTM load
             if (!checkAndSendGTMData()) {
-                // If GTM not loaded yet, check periodically
                 const checkInterval = setInterval(() => {
                     if (checkAndSendGTMData()) {
                         clearInterval(checkInterval);
@@ -74,10 +85,6 @@
                 // Stop checking after 10 seconds
                 setTimeout(() => clearInterval(checkInterval), 10000);
             }
-
-            // Create MessageChannel and send port to parent
-            const channel = new MessageChannel();
-            window.parent.postMessage('INIT_CHANNEL', 'https://richpoirier.github.io', [channel.port2]);
         </script>
     </head>
     <body>
@@ -86,6 +93,5 @@
             <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-T36KSSBM" height="0" width="0" style="display:none;visibility:hidden"></iframe>
         </noscript>
         <!-- End Google Tag Manager (noscript) -->
-        <h1>Iframe Test</h1>
     </body>
 </html>
