@@ -28,12 +28,11 @@
                         window.dataLayer.push(...gtmData.dataLayer);
                     }
                     
-                    // Create google_tag_manager proxy with essential properties
+                    // Create google_tag_manager proxy
                     window.google_tag_manager = {};
                     if (gtmData.containerId) {
                         window.google_tag_manager[gtmData.containerId] = {
-                            dataLayer: window.dataLayer,
-                            ...gtmData.gtmState
+                            dataLayer: window.dataLayer
                         };
                     }
                     
@@ -42,6 +41,8 @@
             }
         });
     </script>
+    <!-- Ensure proper Content-Security-Policy -->
+    <meta http-equiv="Content-Security-Policy" content="frame-src https://richpoirier.github.io https://www.googletagmanager.com">
 </head>
 <body>
     <h1>GTM Test Page</h1>
@@ -49,86 +50,7 @@
         sandbox="allow-scripts allow-forms" 
         src="https://richpoirier.github.io/iframe-test/iframe.html"
         title="Web Pixel"
-    </iframe>
-</body>
-</html>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>GTM Sandbox Test</title>
-    <meta http-equiv="Content-Security-Policy" content="block-all-mixed-content; frame-ancestors 'self'; upgrade-insecure-requests;">
-    <style>
-        .pixel-iframe {
-            height: 0px !important;
-            width: 0px !important;
-            visibility: hidden !important;
-        }
-        
-        .visible {
-            position: static;
-            width: 300px;
-            height: 100px;
-            visibility: visible;
-            border: 1px solid #ccc;
-            margin: 20px 0;
-        }
-    </style>
-</head>
-<body>
-    <h1>GTM Sandbox Test Page</h1>
-    <p>Testing Shopify-like web pixel iframe with postMessage:</p>
-    
-    <!-- Shopify-like web pixel iframe -->
-    <iframe 
-        src="gtm-frame.html"
-        sandbox="allow-scripts allow-forms"
-        tabindex="-1"
-        aria-hidden="true"
-        name="web-pixel-sandbox-TEST"
-        id="web-pixel-sandbox-TEST"
-        class="pixel-iframe"
-        title="Web Pixel"
+        style="width:0;height:0;border:0;visibility:hidden"
     ></iframe>
-
-    <script>
-    // Listen for GTM data from iframe
-    window.addEventListener('message', function(event) {
-        // Log the received message for debugging
-        console.log('Received message from:', event.origin);
-        
-        // Accept messages from our GitHub Pages domain or its subpaths
-        if (!event.origin.startsWith('https://richpoirier.github.io')) {
-            console.warn('Received message from unexpected origin:', event.origin);
-            return;
-        }
-
-        if (event.data && event.data.type === 'GTM_DATA') {
-            const gtmData = event.data.data;
-            
-            // Create a proxy object that Tag Assistant can detect
-            if (gtmData.hasGTM && !window.google_tag_manager) {
-                // Create dataLayer if it doesn't exist
-                window.dataLayer = window.dataLayer || [];
-                
-                // Sync dataLayer from iframe
-                if (gtmData.dataLayer) {
-                    window.dataLayer.push(...gtmData.dataLayer);
-                }
-                
-                // Create google_tag_manager proxy with essential properties
-                window.google_tag_manager = {};
-                if (gtmData.containerId) {
-                    window.google_tag_manager[gtmData.containerId] = {
-                        dataLayer: window.dataLayer,
-                        ...gtmData.gtmState
-                    };
-                }
-                
-                console.log('GTM data synced from iframe:', window.google_tag_manager);
-            }
-        }
-    });
-    </script>
 </body>
 </html>

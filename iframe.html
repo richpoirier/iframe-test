@@ -2,6 +2,8 @@
     <head>
         <meta charset="UTF-8">
         <title>Web Pixel</title>
+        <!-- Ensure proper origin handling -->
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.googletagmanager.com; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com">
         <script>
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
             new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -13,37 +15,14 @@
             function checkAndSendGTMData() {
                 // Check if GTM is loaded
                 if (window.google_tag_manager) {
-                    const containerId = Object.keys(window.google_tag_manager)[0];
-                    
-                    // Create a minimal safe copy of GTM state
-                    const safeGTMState = {
-                        'gtm.start': window.dataLayer?.[0]?.['gtm.start'],
-                        loaded: true,
-                        version: window.google_tag_manager[containerId]?.version || '',
-                    };
-
-                    // Create a safe copy of dataLayer with only essential data
-                    const safeDataLayer = window.dataLayer ? window.dataLayer.map(item => {
-                        if (item && typeof item === 'object') {
-                            // Only include essential GTM events and properties
-                            const safeItem = {};
-                            if (item.event) safeItem.event = item.event;
-                            if (item['gtm.start']) safeItem['gtm.start'] = item['gtm.start'];
-                            if (item['gtm.uniqueEventId']) safeItem['gtm.uniqueEventId'] = item['gtm.uniqueEventId'];
-                            return safeItem;
-                        }
-                        return item;
-                    }).filter(Boolean) : [];
-
                     window.parent.postMessage({
                         type: 'GTM_DATA',
                         data: {
                             hasGTM: true,
-                            containerId,
-                            dataLayer: safeDataLayer,
-                            gtmState: safeGTMState
+                            containerId: Object.keys(window.google_tag_manager)[0],
+                            dataLayer: window.dataLayer || []
                         }
-                    }, '*');
+                    }, 'https://richpoirier.github.io');  // Explicitly set target origin
                     return true;
                 }
                 return false;
