@@ -4,40 +4,51 @@
     <title>GTM Test Page</title>
     <meta charset="UTF-8">
     <script>
-        // Listen for GTM data from iframe
+        // Listen for initial channel setup from iframe
         window.addEventListener('message', function(event) {
             // Log the received message for debugging
             console.log('Received message from:', event.origin);
         
             // Accept messages from our GitHub Pages domain or its subpaths
-            if (!event.origin.startsWith('https://richpoirier.github.io')) {
-                console.warn('Received message from unexpected origin:', event.origin);
-                return;
-            }
+            // if (!event.origin.startsWith('https://richpoirier.github.io')) {
+            //     console.warn('Received message from unexpected origin:', event.origin);
+            //     return;
+            // }
 
-            if (event.data && event.data.type === 'GTM_DATA') {
-                const gtmData = event.data.data;
+            // Handle the MessageChannel port transfer
+            if (event.data === 'INIT_CHANNEL') {
+                const port = event.ports[0];
                 
-                // Create a proxy object that Tag Assistant can detect
-                if (gtmData.hasGTM && !window.google_tag_manager) {
-                    // Create dataLayer if it doesn't exist
-                    window.dataLayer = window.dataLayer || [];
-                    
-                    // Sync dataLayer from iframe
-                    if (gtmData.dataLayer) {
-                        window.dataLayer.push(...gtmData.dataLayer);
+                // Listen for messages on the port
+                port.onmessage = function(e) {
+                    if (e.data && e.data.type === 'GTM_DATA') {
+                        const gtmData = e.data.data;
+                        
+                        // Create a proxy object that Tag Assistant can detect
+                        if (gtmData.hasGTM && !window.google_tag_manager) {
+                            // Create dataLayer if it doesn't exist
+                            window.dataLayer = window.dataLayer || [];
+                            
+                            // Sync dataLayer from iframe
+                            if (gtmData.dataLayer) {
+                                window.dataLayer.push(...gtmData.dataLayer);
+                            }
+                            
+                            // Create google_tag_manager proxy
+                            window.google_tag_manager = {};
+                            if (gtmData.containerId) {
+                                window.google_tag_manager[gtmData.containerId] = {
+                                    dataLayer: window.dataLayer
+                                };
+                            }
+                            
+                            console.log('GTM data synced from iframe:', window.google_tag_manager);
+                        }
                     }
-                    
-                    // Create google_tag_manager proxy
-                    window.google_tag_manager = {};
-                    if (gtmData.containerId) {
-                        window.google_tag_manager[gtmData.containerId] = {
-                            dataLayer: window.dataLayer
-                        };
-                    }
-                    
-                    console.log('GTM data synced from iframe:', window.google_tag_manager);
-                }
+                };
+
+                // Start receiving messages
+                port.start();
             }
         });
     </script>
