@@ -9,27 +9,30 @@
             let messagePort = null;
             let debugReceiver = null;
 
+            // Create the debug API object that will be returned for any frame access
+            const debugApiObject = {
+                setReceiver: function(receiver) {
+                    debugReceiver = receiver;
+                },
+                sendMessage: function(message) {
+                    if (messagePort) {
+                        messagePort.postMessage({
+                            type: 'GTM_DEBUG_MESSAGE',
+                            data: message
+                        });
+                    }
+                }
+            };
+
             // Create a proxy handler for window properties
             const proxyHandler = {
                 get: function(target, prop) {
-                    // Special handling for 'parent' and 'top' properties
-                    if (prop === 'parent' || prop === 'top') {
+                    // Special handling for 'parent', 'top', and 'frames' properties
+                    if (prop === 'parent' || prop === 'top' || prop === 'frames') {
                         return new Proxy(window, {
                             get: function(target, prop) {
                                 if (prop === 'debugBadgeApi') {
-                                    return {
-                                        setReceiver: function(receiver) {
-                                            debugReceiver = receiver;
-                                        },
-                                        sendMessage: function(message) {
-                                            if (messagePort) {
-                                                messagePort.postMessage({
-                                                    type: 'GTM_DEBUG_MESSAGE',
-                                                    data: message
-                                                });
-                                            }
-                                        }
-                                    };
+                                    return debugApiObject;
                                 }
                                 return target[prop];
                             },
@@ -55,6 +58,7 @@
                     // Apply proxy to window
                     window.top = new Proxy(window, proxyHandler);
                     window.parent = new Proxy(window, proxyHandler);
+                    window.frames = new Proxy(window, proxyHandler);
 
                     // Initialize GTM with original snippet
                     (function(w,d,s,l,i){
