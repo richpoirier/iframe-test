@@ -50,48 +50,45 @@
                 }
             };
 
-            // Proxy handler for iframe elements
-            const iframeProxyHandler = {
-                get: function(target, prop) {
-                    if (prop === 'contentWindow') {
-                        // Return a proxy for the contentWindow
-                        return new Proxy(target.contentWindow || {}, {
-                            get: function(target, prop) {
-                                if (prop === 'debugBadgeApi') {
-                                    return debugApiObject;
-                                }
-                                return target[prop];
-                            },
-                            set: function(target, prop, value) {
-                                if (prop === 'debugBadgeApi') {
+            // Function to proxy an iframe's contentWindow
+            function proxyIframeContentWindow(iframe) {
+                if (iframe instanceof HTMLIFrameElement) {
+                    Object.defineProperty(iframe, 'contentWindow', {
+                        get: function() {
+                            const originalContentWindow = HTMLIFrameElement.prototype.contentWindow.get.call(this);
+                            return new Proxy(originalContentWindow || {}, {
+                                get: function(target, prop) {
+                                    if (prop === 'debugBadgeApi') {
+                                        return debugApiObject;
+                                    }
+                                    return target[prop];
+                                },
+                                set: function(target, prop, value) {
+                                    if (prop === 'debugBadgeApi') {
+                                        return true;
+                                    }
+                                    try {
+                                        target[prop] = value;
+                                    } catch (e) {
+                                        // Ignore security errors from cross-origin access
+                                    }
                                     return true;
                                 }
-                                try {
-                                    target[prop] = value;
-                                } catch (e) {
-                                    // Ignore security errors from cross-origin access
-                                }
-                                return true;
-                            }
-                        });
-                    }
-                    return target[prop];
-                }
-            };
-
-            function wrapIframe(iframe) {
-                if (iframe instanceof HTMLIFrameElement) {
-                    return new Proxy(iframe, iframeProxyHandler);
+                            });
+                        },
+                        configurable: true,
+                        enumerable: true
+                    });
                 }
                 return iframe;
             }
 
-            // Override createElement to proxy iframes
+            // Override createElement to proxy iframe contentWindow
             const originalCreateElement = document.createElement;
             document.createElement = function(tagName) {
                 const element = originalCreateElement.call(document, tagName);
                 if (tagName.toLowerCase() === 'iframe') {
-                    return new Proxy(element, iframeProxyHandler);
+                    proxyIframeContentWindow(element);
                 }
                 return element;
             };
@@ -104,65 +101,42 @@
                     // After setting innerHTML, find and proxy any iframes
                     const iframes = this.getElementsByTagName('iframe');
                     Array.from(iframes).forEach(iframe => {
-                        // Create proxy but preserve the original node
-                        const proxy = new Proxy(iframe, iframeProxyHandler);
-                        // Copy proxy handlers to original iframe
-                        Object.defineProperty(iframe, 'contentWindow', {
-                            get: function() {
-                                return proxy.contentWindow;
-                            }
-                        });
+                        proxyIframeContentWindow(iframe);
                     });
                     return true;
                 },
                 get: originalInnerHTMLDescriptor.get
             });
 
-            // Override querySelector and querySelectorAll to proxy any iframes they return
-            const originalQuerySelector = Element.prototype.querySelector;
-            Element.prototype.querySelector = function(selector) {
-                const element = originalQuerySelector.call(this, selector);
-                return wrapIframe(element);
-            };
+            // Get the original contentWindow getter
+            const originalContentWindowGetter = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'contentWindow').get;
 
-            const originalQuerySelectorAll = Element.prototype.querySelectorAll;
-            Element.prototype.querySelectorAll = function(selector) {
-                const elements = originalQuerySelectorAll.call(this, selector);
-                const wrappedElements = Array.from(elements).map(wrapIframe);
-                return wrappedElements;
-            };
-
-            // Override getElementsByTagName to proxy iframes
-            const originalGetElementsByTagName = document.getElementsByTagName;
-            document.getElementsByTagName = function(tagName) {
-                const elements = originalGetElementsByTagName.call(this, tagName);
-                if (tagName.toLowerCase() === 'iframe') {
-                    Array.from(elements).forEach((iframe, index) => {
-                        elements[index] = wrapIframe(iframe);
-                    });
-                }
-                return elements;
-            };
-
-            // Override firstChild and children to proxy iframes
-            Object.defineProperty(Element.prototype, 'firstChild', {
+            // Override the contentWindow getter on the HTMLIFrameElement prototype
+            Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
                 get: function() {
-                    const child = this.childNodes[0];
-                    return wrapIframe(child);
-                }
-            });
-
-            const originalChildrenGetter = Object.getOwnPropertyDescriptor(Element.prototype, 'children').get;
-            Object.defineProperty(Element.prototype, 'children', {
-                get: function() {
-                    const children = originalChildrenGetter.call(this);
-                    Array.from(children).forEach((child, index) => {
-                        if (child instanceof HTMLIFrameElement) {
-                            children[index] = wrapIframe(child);
+                    const originalContentWindow = originalContentWindowGetter.call(this);
+                    return new Proxy(originalContentWindow || {}, {
+                        get: function(target, prop) {
+                            if (prop === 'debugBadgeApi') {
+                                return debugApiObject;
+                            }
+                            return target[prop];
+                        },
+                        set: function(target, prop, value) {
+                            if (prop === 'debugBadgeApi') {
+                                return true;
+                            }
+                            try {
+                                target[prop] = value;
+                            } catch (e) {
+                                // Ignore security errors from cross-origin access
+                            }
+                            return true;
                         }
                     });
-                    return children;
-                }
+                },
+                configurable: true,
+                enumerable: true
             });
 
             // Listen for the MessageChannel port from parent
