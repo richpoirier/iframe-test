@@ -2,17 +2,22 @@
     <head>
         <meta charset="UTF-8">
         <title>Web Pixel</title>
-        <!-- Ensure proper origin handling -->
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.googletagmanager.com; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com">
+        <base href="https://richpoirier.github.io/iframe-test/">
         <script>
-            // Create MessageChannel and send port to parent
-            const channel = new MessageChannel();
-            window.parent.postMessage('INIT_CHANNEL', 'https://richpoirier.github.io', [channel.port2]);
-
-            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+            // Initialize GTM with debug parameters
+            (function(w,d,s,l,i){
+                w[l]=w[l]||[];
+                w[l].push({
+                    'gtm.start': new Date().getTime(),
+                    event:'gtm.js'
+                });
+                var f=d.getElementsByTagName(s)[0],
+                j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
+                j.async=true;
+                // Add debug parameters if needed
+                var debugParams = window.location.href.includes('gtm_debug=') ? '&gtm_debug=x' : '';
+                j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl+debugParams;
+                f.parentNode.insertBefore(j,f);
             })(window,document,'script','dataLayer','GTM-T36KSSBM');
             
             // Function to check GTM and send data to parent
@@ -48,7 +53,8 @@
                         data: {
                             hasGTM: true,
                             containerId: containerId,
-                            dataLayer: safeDataLayer
+                            dataLayer: safeDataLayer,
+                            debug: window.location.href.includes('gtm_debug=')
                         }
                     });
                     return true;
@@ -68,6 +74,10 @@
                 // Stop checking after 10 seconds
                 setTimeout(() => clearInterval(checkInterval), 10000);
             }
+
+            // Create MessageChannel and send port to parent
+            const channel = new MessageChannel();
+            window.parent.postMessage('INIT_CHANNEL', 'https://richpoirier.github.io', [channel.port2]);
         </script>
     </head>
     <body>
