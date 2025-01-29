@@ -50,6 +50,45 @@
                 }
             };
 
+            // Proxy handler for iframe elements
+            const iframeProxyHandler = {
+                get: function(target, prop) {
+                    if (prop === 'contentWindow') {
+                        // Return a proxy for the contentWindow
+                        return new Proxy(target.contentWindow || {}, {
+                            get: function(target, prop) {
+                                if (prop === 'debugBadgeApi') {
+                                    return debugApiObject;
+                                }
+                                return target[prop];
+                            },
+                            set: function(target, prop, value) {
+                                if (prop === 'debugBadgeApi') {
+                                    return true;
+                                }
+                                try {
+                                    target[prop] = value;
+                                } catch (e) {
+                                    // Ignore security errors from cross-origin access
+                                }
+                                return true;
+                            }
+                        });
+                    }
+                    return target[prop];
+                }
+            };
+
+            // Override createElement to proxy iframes
+            const originalCreateElement = document.createElement;
+            document.createElement = function(tagName) {
+                const element = originalCreateElement.call(document, tagName);
+                if (tagName.toLowerCase() === 'iframe') {
+                    return new Proxy(element, iframeProxyHandler);
+                }
+                return element;
+            };
+
             // Listen for the MessageChannel port from parent
             window.addEventListener('message', function(event) {
                 if (event.data === 'INIT_CHANNEL') {
