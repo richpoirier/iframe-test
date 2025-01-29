@@ -103,9 +103,15 @@
                     originalInnerHTMLDescriptor.set.call(this, html);
                     // After setting innerHTML, find and proxy any iframes
                     const iframes = this.getElementsByTagName('iframe');
-                    Array.from(iframes).forEach((iframe, index) => {
-                        const proxiedIframe = wrapIframe(iframe);
-                        iframe.parentNode.replaceChild(proxiedIframe, iframe);
+                    Array.from(iframes).forEach(iframe => {
+                        // Create proxy but preserve the original node
+                        const proxy = new Proxy(iframe, iframeProxyHandler);
+                        // Copy proxy handlers to original iframe
+                        Object.defineProperty(iframe, 'contentWindow', {
+                            get: function() {
+                                return proxy.contentWindow;
+                            }
+                        });
                     });
                     return true;
                 },
