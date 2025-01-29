@@ -50,6 +50,7 @@
                         j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
                         f.parentNode.insertBefore(j,f);
                     })(window,document,'script','dataLayer','GTM-T36KSSBM');
+                    dataLayer.push({'event': 'gtm.js'});
                 }
             });
 
@@ -77,7 +78,7 @@
                 };
 
                 // Instead of proxying the target window, create a fresh object
-                return {
+                const fakeWindow = {
                     get debugBadgeApi() {
                         return debuggerApi;
                     },
@@ -88,8 +89,30 @@
                     // Return our fake document object
                     get document() {
                         return fakeDocument;
+                    },
+                    // Add Tag Assistant detection support
+                    get google_tag_manager() {
+                        return window.google_tag_manager;
+                    },
+                    get dataLayer() {
+                        return window.dataLayer;
+                    },
+                    postMessage: function(msg, targetOrigin, transfer) {
+                        if (messagePort) {
+                            messagePort.postMessage({
+                                type: 'DEBUGGER_RELAY',
+                                message: msg
+                            });
+                        }
                     }
                 };
+
+                // Add event listener support
+                fakeWindow.addEventListener = window.addEventListener.bind(window);
+                fakeWindow.removeEventListener = window.removeEventListener.bind(window);
+                fakeWindow.dispatchEvent = window.dispatchEvent.bind(window);
+
+                return fakeWindow;
             };
 
             // Override contentWindow getter on HTMLIFrameElement
