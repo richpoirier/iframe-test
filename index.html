@@ -45,7 +45,7 @@
         // Listen for initial channel setup from iframe
         window.addEventListener('message', function(event) {
             // Log the received message for debugging
-            // console.log('Received message from:', event.origin);
+            console.log('Received message from:', event.origin);
         
             // Accept messages from our GitHub Pages domain or its subpaths
             // if (!event.origin.startsWith('https://richpoirier.github.io')) {
@@ -99,17 +99,46 @@
             writable: false,
             configurable: false
         });
+
+        // Create MessageChannel for secure communication
+        const channel = new MessageChannel();
+        let debugReceiver = null;
+
+        // Set up debugBadgeApi on parent window (this window)
+        window.debugBadgeApi = {
+            setReceiver: function(receiver) {
+                debugReceiver = receiver;
+            },
+            sendMessage: function(message) {
+                if (debugReceiver) {
+                    debugReceiver(message);
+                }
+            }
+        };
+
+        // Listen for messages from iframe
+        channel.port1.onmessage = function(event) {
+            if (event.data.type === 'GTM_DEBUG_MESSAGE' && debugReceiver) {
+                debugReceiver(event.data.data);
+            }
+        };
+
+        // Create and append iframe with sandbox attributes
+        const iframe = document.createElement('iframe');
+        iframe.sandbox = 'allow-scripts allow-forms';  // Explicitly exclude allow-same-origin
+        iframe.src = 'https://richpoirier.github.io/iframe-test/iframe.html';
+        
+        // Once iframe loads, send it the MessageChannel port
+        iframe.onload = function() {
+            iframe.contentWindow.postMessage('INIT_CHANNEL', '*', [channel.port2]);
+        };
+        
+        document.body.appendChild(iframe);
     </script>
     <!-- Ensure proper Content-Security-Policy -->
     <meta http-equiv="Content-Security-Policy" content="frame-src https://richpoirier.github.io https://www.googletagmanager.com">
 </head>
 <body>
     <h1>GTM Test Page</h1>
-    <iframe 
-        sandbox="allow-scripts allow-forms" 
-        src="https://richpoirier.github.io/iframe-test/iframe.html"
-        title="Web Pixel"
-        style="width:0;height:0;border:0;visibility:hidden"
-    ></iframe>
 </body>
 </html>

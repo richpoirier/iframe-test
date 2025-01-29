@@ -1,141 +1,50 @@
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8">
         <title>Web Pixel</title>
         <script>
-            // Create MessageChannel for secure communication
-            const channel = new MessageChannel();
+            let messagePort = null;
 
-            // Initialize connection with parent first (before any proxying)
-            window.parent.postMessage('INIT_CHANNEL', '*', [channel.port2]);
-
-            // Create a proxy for all window properties GTM might try to access
-            const proxyHandler = {
-                get: function(target, prop) {
-                    return target[prop];
-                },
-                set: function(target, prop, value) {
-                    if (prop === 'debugBadgeApi') {
-                        // When GTM tries to set debugBadgeApi, create a proxy version
-                        target[prop] = {
-                            setReceiver: function(receiver) {
-                                window._gtmDebugReceiver = function(data) {
-                                    channel.port1.postMessage({
-                                        type: 'GTM_DEBUG_EVENT',
-                                        data: data
-                                    });
-                                };
-                            },
-                            sendMessage: function(message) {
-                                channel.port1.postMessage({
-                                    type: 'GTM_DEBUG_MESSAGE',
-                                    data: message
-                                });
-                            }
-                        };
-                        return true;
-                    }
-                    target[prop] = value;
-                    return true;
-                }
-            };
-
-            // Create a proxy of the window object itself
-            const windowProxy = new Proxy(window, proxyHandler);
-
-            // Override the global window object references
-            Object.getOwnPropertyNames(windowProxy).forEach(prop => {
-                try {
-                    if (prop !== 'top' && prop !== 'parent' && prop !== 'window') {
-                        window[prop] = windowProxy[prop];
-                    }
-                } catch (e) {
-                    // Some properties might be read-only or non-configurable
+            // Listen for the MessageChannel port from parent
+            window.addEventListener('message', function(event) {
+                if (event.data === 'INIT_CHANNEL') {
+                    messagePort = event.ports[0];
+                    setupGTMDebug();
                 }
             });
 
-            // Also proxy window.top and window.parent
-            window.top = windowProxy;
-            window.parent = windowProxy;
-
-            // Function to check GTM and send data to parent
-            function checkAndSendGTMData() {
-                // Check if GTM is loaded
-                if (window.google_tag_manager) {
-                    const containerId = Object.keys(window.google_tag_manager)[0];
-                    const gtm = window.google_tag_manager[containerId];
-                    
-                    // Create a safe copy of dataLayer with only serializable data
-                    const safeDataLayer = (window.dataLayer || []).map(item => {
-                        try {
-                            // Test if item is directly serializable
-                            JSON.stringify(item);
-                            return item;
-                        } catch (e) {
-                            // If not serializable, extract only the data properties
-                            const safeItem = {};
-                            Object.keys(item).forEach(key => {
-                                try {
-                                    JSON.stringify(item[key]);
-                                    safeItem[key] = item[key];
-                                } catch (e) {
-                                    // Skip non-serializable properties
-                                }
+            function setupGTMDebug() {
+                // Create a proxy for GTM debug messages
+                window._debugBadgeApi = {
+                    setReceiver: function(receiver) {
+                        // When GTM sets a receiver, store it to forward messages
+                        window._gtmDebugReceiver = receiver;
+                    },
+                    sendMessage: function(message) {
+                        // Forward messages to parent through MessageChannel
+                        if (messagePort) {
+                            messagePort.postMessage({
+                                type: 'GTM_DEBUG_MESSAGE',
+                                data: message
                             });
-                            return safeItem;
                         }
-                    });
-
-                    // Send data through MessageChannel
-                    channel.port1.postMessage({
-                        type: 'GTM_DATA',
-                        data: {
-                            hasGTM: true,
-                            containerId: containerId,
-                            dataLayer: safeDataLayer,
-                            version: gtm.version,
-                            debugMode: window.location.href.includes('gtm_debug=')
-                        }
-                    });
-                    return true;
-                }
-                return false;
-            }
-
-            // Listen for messages from parent
-            channel.port1.onmessage = function(e) {
-                if (e.data && e.data.type === 'GTM_DEBUG') {
-                    // Handle debug messages from parent
-                    if (window._gtmDebugReceiver) {
-                        window._gtmDebugReceiver(e.data.data);
                     }
-                }
-            };
-            
-            // Initialize GTM
-            (function(w,d,s,l,i){
-                w[l]=w[l]||[];
-                w[l].push({
-                    'gtm.start': new Date().getTime(),
-                    event:'gtm.js'
-                });
-                var f=d.getElementsByTagName(s)[0],
-                j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
-                j.async=true;
-                j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
-                f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','GTM-T36KSSBM');
-        
-            // Start checking for GTM load
-            if (!checkAndSendGTMData()) {
-                const checkInterval = setInterval(() => {
-                    if (checkAndSendGTMData()) {
-                        clearInterval(checkInterval);
-                    }
-                }, 500);
-        
-                // Stop checking after 10 seconds
-                setTimeout(() => clearInterval(checkInterval), 10000);
+                };
+
+                // Initialize GTM with original snippet
+                (function(w,d,s,l,i){
+                    w[l]=w[l]||[];
+                    w[l].push({
+                        'gtm.start': new Date().getTime(),
+                        event:'gtm.js'
+                    });
+                    var f=d.getElementsByTagName(s)[0],
+                    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
+                    j.async=true;
+                    j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
+                    f.parentNode.insertBefore(j,f);
+                })(window,document,'script','dataLayer','GTM-T36KSSBM');
             }
         </script>
     </head>
