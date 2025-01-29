@@ -2,16 +2,9 @@
     <head>
         <meta charset="UTF-8">
         <title>Web Pixel</title>
-        <base href="https://richpoirier.github.io/iframe-test/">
         <script>
-            // Create MessageChannel first
+            // Create MessageChannel for secure communication
             const channel = new MessageChannel();
-            
-            // Set up debug API interface before GTM loads
-            window.zdgeApi = {
-                setReceiver: function() {},
-                sendMessage: function() {}
-            };
 
             // Function to check GTM and send data to parent
             function checkAndSendGTMData() {
@@ -46,8 +39,7 @@
                         data: {
                             hasGTM: true,
                             containerId: containerId,
-                            dataLayer: safeDataLayer,
-                            debug: window.location.href.includes('gtm_debug=')
+                            dataLayer: safeDataLayer
                         }
                     });
                     return true;
@@ -56,9 +48,9 @@
             }
 
             // Initialize connection with parent first
-            window.parent.postMessage('INIT_CHANNEL', 'https://richpoirier.github.io', [channel.port2]);
+            window.parent.postMessage('INIT_CHANNEL', '*', [channel.port2]);
             
-            // Initialize GTM after debug setup
+            // Initialize GTM
             (function(w,d,s,l,i){
                 w[l]=w[l]||[];
                 w[l].push({
@@ -68,9 +60,7 @@
                 var f=d.getElementsByTagName(s)[0],
                 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
                 j.async=true;
-                // Add debug parameters if needed
-                var debugParams = window.location.href.includes('gtm_debug=') ? '&gtm_debug=x' : '';
-                j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl+debugParams;
+                j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;
                 f.parentNode.insertBefore(j,f);
             })(window,document,'script','dataLayer','GTM-T36KSSBM');
         

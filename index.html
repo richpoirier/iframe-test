@@ -4,6 +4,12 @@
     <title>GTM Test Page</title>
     <meta charset="UTF-8">
     <script>
+        // Set up debug API interface for Tag Assistant
+        window.debugBadgeApi = {
+            setReceiver: function() {},
+            sendMessage: function() {}
+        };
+
         // Listen for initial channel setup from iframe
         window.addEventListener('message', function(event) {
             // Log the received message for debugging
@@ -34,11 +40,16 @@
                                 window.dataLayer.push(...gtmData.dataLayer);
                             }
                             
-                            // Create google_tag_manager proxy
+                            // Create google_tag_manager proxy with debug support
                             window.google_tag_manager = {};
                             if (gtmData.containerId) {
                                 window.google_tag_manager[gtmData.containerId] = {
-                                    dataLayer: window.dataLayer
+                                    dataLayer: window.dataLayer,
+                                    _debugFlag: true,
+                                    debug: {
+                                        state: 'loaded',
+                                        dataLayer: window.dataLayer
+                                    }
                                 };
                             }
                             
