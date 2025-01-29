@@ -40,9 +40,23 @@
                 }
             };
 
-            // Apply proxy to window object after initial communication is set up
-            window.top = new Proxy(window, proxyHandler);
-            window.parent = new Proxy(window, proxyHandler);
+            // Create a proxy of the window object itself
+            const windowProxy = new Proxy(window, proxyHandler);
+
+            // Override the global window object references
+            Object.getOwnPropertyNames(windowProxy).forEach(prop => {
+                try {
+                    if (prop !== 'top' && prop !== 'parent' && prop !== 'window') {
+                        window[prop] = windowProxy[prop];
+                    }
+                } catch (e) {
+                    // Some properties might be read-only or non-configurable
+                }
+            });
+
+            // Also proxy window.top and window.parent
+            window.top = windowProxy;
+            window.parent = windowProxy;
 
             // Function to check GTM and send data to parent
             function checkAndSendGTMData() {

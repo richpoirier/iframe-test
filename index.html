@@ -48,10 +48,10 @@
             console.log('Received message from:', event.origin);
         
             // Accept messages from our GitHub Pages domain or its subpaths
-            if (!event.origin.startsWith('https://richpoirier.github.io')) {
-                console.warn('Received message from unexpected origin:', event.origin);
-                return;
-            }
+            // if (!event.origin.startsWith('https://richpoirier.github.io')) {
+            //     console.warn('Received message from unexpected origin:', event.origin);
+            //     return;
+            // }
 
             // Handle the MessageChannel port transfer
             if (event.data === 'INIT_CHANNEL') {
