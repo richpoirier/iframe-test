@@ -15,14 +15,37 @@
             function checkAndSendGTMData() {
                 // Check if GTM is loaded
                 if (window.google_tag_manager) {
+                    const containerId = Object.keys(window.google_tag_manager)[0];
+                    
+                    // Create a safe copy of dataLayer with only serializable data
+                    const safeDataLayer = (window.dataLayer || []).map(item => {
+                        try {
+                            // Test if item is directly serializable
+                            JSON.stringify(item);
+                            return item;
+                        } catch (e) {
+                            // If not serializable, extract only the data properties
+                            const safeItem = {};
+                            Object.keys(item).forEach(key => {
+                                try {
+                                    JSON.stringify(item[key]);
+                                    safeItem[key] = item[key];
+                                } catch (e) {
+                                    // Skip non-serializable properties
+                                }
+                            });
+                            return safeItem;
+                        }
+                    });
+
                     window.parent.postMessage({
                         type: 'GTM_DATA',
                         data: {
                             hasGTM: true,
-                            containerId: Object.keys(window.google_tag_manager)[0],
-                            dataLayer: window.dataLayer || []
+                            containerId: containerId,
+                            dataLayer: safeDataLayer
                         }
-                    }, 'https://richpoirier.github.io');  // Explicitly set target origin
+                    }, 'https://richpoirier.github.io');
                     return true;
                 }
                 return false;
